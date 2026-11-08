@@ -1,0 +1,6 @@
+{
+  "name": "AylusMusic",
+  "description": "Pemutar musik PWA modern, hemat penyimpanan, impor Spotify, offline player dengan Web Audio 300% boost & 10-band EQ.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
