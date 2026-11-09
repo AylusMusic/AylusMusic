@@ -200,7 +200,7 @@ export const Dialog = {
  * Modern Bottom Sheet Component
  */
 export const BottomSheet = {
-  show({ title = '', contentHtml = '', onClose = null }) {
+  show({ title = '', contentHtml = '', onClose = null, onOpen = null }) {
     let sheetOverlay = document.getElementById('bottom-sheet-overlay');
     if (!sheetOverlay) {
       sheetOverlay = document.createElement('div');
@@ -237,6 +237,14 @@ export const BottomSheet = {
     sheetOverlay.onclick = (e) => {
       if (e.target === sheetOverlay) close();
     };
+
+    if (typeof onOpen === 'function') {
+      try {
+        onOpen({ close });
+      } catch (e) {
+        console.error('BottomSheet onOpen error:', e);
+      }
+    }
 
     return { close };
   }

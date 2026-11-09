@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>AylusMusic - Pemutar Musik PWA</title>
+  <meta name="description" content="Pemutar musik PWA modern, hemat penyimpanan, impor Spotify, offline player dengan Web Audio 300% boost & 10-band EQ." />
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="AylusMusic - Pemutar Musik PWA" />
+  <meta property="og:description" content="Pemutar musik PWA modern, hemat penyimpanan, impor Spotify, offline player dengan Web Audio 300% boost & 10-band EQ." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/assets/logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#F4FFFD" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="AylusMusic" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheets (Tailwind CSS v4 + Variables + Base + Components + Screens) -->
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/screens.css" />
+  <link rel="stylesheet" href="/src/index.css" />
+
+  <style id="light-theme-global-overrides">
+    body[data-theme="light"],
+    body[data-theme="light"] * {
+      --text-primary: #06303A;
+      --text-secondary: #0B535F;
+    }
+
+    body[data-theme="light"] {
+      background: radial-gradient(circle at 10% 10%, rgba(15, 181, 174, 0.14) 0%, transparent 45%),
+                  radial-gradient(circle at 90% 90%, rgba(245, 197, 66, 0.12) 0%, transparent 50%),
+                  #EEF8F8 !important;
+      color: #06303A !important;
+    }
+
+    body[data-theme="light"] h1,
+    body[data-theme="light"] h2,
+    body[data-theme="light"] h3,
+    body[data-theme="light"] h4,
+    body[data-theme="light"] .text-white {
+      color: #06303A !important;
+    }
+
+    body[data-theme="light"] .text-slate-100,
+    body[data-theme="light"] .text-slate-200,
+    body[data-theme="light"] .text-slate-300 {
+      color: #0B535F !important;
+    }
+
+    body[data-theme="light"] .text-slate-400 {
+      color: #396B74 !important;
+    }
+
+    body[data-theme="light"] .text-slate-500 {
+      color: #558790 !important;
+    }
+
+    body[data-theme="light"] .bg-slate-800,
+    body[data-theme="light"] .bg-slate-800\/80,
+    body[data-theme="light"] .bg-slate-800\/90,
+    body[data-theme="light"] .bg-slate-900,
+    body[data-theme="light"] .bg-slate-900\/80,
+    body[data-theme="light"] .bg-slate-900\/90,
+    body[data-theme="light"] .glass-panel {
+      background-color: #FFFFFF !important;
+      border-color: rgba(11, 127, 140, 0.16) !important;
+      box-shadow: 0 4px 16px rgba(11, 127, 140, 0.08) !important;
+    }
+
+    body[data-theme="light"] .border-slate-700,
+    body[data-theme="light"] .border-slate-700\/60,
+    body[data-theme="light"] .border-slate-800 {
+      border-color: rgba(11, 127, 140, 0.18) !important;
+    }
+
+    body[data-theme="light"] input,
+    body[data-theme="light"] select,
+    body[data-theme="light"] textarea {
+      background-color: #FFFFFF !important;
+      color: #06303A !important;
+      border-color: rgba(11, 127, 140, 0.22) !important;
+    }
+
+    body[data-theme="light"] .btn-secondary {
+      background: #FFFFFF !important;
+      color: #06303A !important;
+      border: 1px solid rgba(11, 127, 140, 0.18) !important;
+      box-shadow: 0 2px 8px rgba(11, 127, 140, 0.06) !important;
+    }
+
+    body[data-theme="light"] .btn-secondary:hover {
+      background: #F0FAF9 !important;
+      border-color: #0FB5AE !important;
+    }
+
+    body[data-theme="light"] #sidebar,
+    body[data-theme="light"] #player-bar,
+    body[data-theme="light"] #bottom-nav,
+    body[data-theme="light"] #mini-player {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: rgba(11, 127, 140, 0.16) !important;
+    }
+  </style>
+</head>
+<body data-theme="light">
+
+  <!-- ====================================================
+       1. LOADING SCREEN
+       ==================================================== -->
+  <div id="loading-screen">
+    <div class="loading-logo-box">
+      <img src="/assets/logo.png" alt="AylusMusic" class="loading-logo-img" />
+      <div class="loading-bar-track">
+        <div id="loading-bar-fill" class="loading-bar-fill"></div>
+      </div>
+      <p class="loading-tagline">Memuat Pustaka Musik...</p>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       2. ONBOARDING WIZARD MODAL
+       ==================================================== -->
+  <div id="onboarding-screen" class="hidden">
+    <div class="onboarding-card">
+      <div id="onboarding-card-content">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       3. MAIN APPLICATION ROOT
+       ==================================================== -->
+  <div id="app-root">
+    
+    <!-- Desktop Sidebar (>= 769px) -->
+    <aside class="desktop-sidebar">
+      <div class="brand-header">
+        <img src="/assets/logo.png" alt="AylusMusic" class="brand-logo-img" />
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#/home" class="nav-link active" data-route="home">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          Beranda
+        </a>
+        <a href="#/search" class="nav-link" data-route="search">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          Cari
+        </a>
+        <a href="#/library" class="nav-link" data-route="library">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          Pustaka
+        </a>
+        <a href="#/profile" class="nav-link" data-route="profile">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Profil
+        </a>
+        <a href="#/settings" class="nav-link" data-route="settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Pengaturan
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-secondary text-xs w-full justify-center pwa-install-trigger hidden" onclick="window.uiManager?.triggerPwaInstall()">
+          <svg class="w-4 h-4 mr-1 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Install Aplikasi PWA
+        </button>
+      </div>
+    </aside>
+
+    <!-- Center Content Layout -->
+    <div class="app-main-layout">
+      <div class="flex-1 flex flex-col h-full overflow-hidden">
+        
+        <!-- Top App Bar -->
+        <header class="top-header">
+          <div class="top-header-left">
+            <span class="md:hidden font-bold text-white text-base flex items-center gap-2">
+              <img src="/assets/logo.png" alt="Logo" class="h-6 w-auto" />
+              AylusMusic
+            </span>
+          </div>
+
+          <div class="top-header-right">
+            <span id="network-status-indicator" class="badge badge-cool text-xs py-1 px-2.5 hidden">● Online</span>
+            <button class="btn btn-gold text-xs py-1.5 px-3 pwa-install-trigger hidden" onclick="window.uiManager?.triggerPwaInstall()">
+              Install
+            </button>
+            <a href="#/profile" class="icon-btn text-cyan-400" aria-label="Profil Saya">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </a>
+          </div>
+        </header>
+
+        <!-- Dynamic Main Content Viewport -->
+        <main id="main-viewport" class="content-viewport">
+          <!-- Views rendered dynamically by ui.js & router.js -->
+        </main>
+      </div>
+    </div>
+
+    <!-- ====================================================
+         4. DESKTOP BOTTOM PLAYER BAR (>= 769px)
+         ==================================================== -->
+    <footer class="desktop-player-bar">
+      <!-- Left: Track info -->
+      <div class="player-track-info">
+        <img id="desktop-player-cover" src="/assets/logo.png" alt="Cover" class="player-cover" />
+        <div id="desktop-player-text" class="player-text">
+          <div id="desktop-player-title" class="player-track-name">Pilih lagu untuk memutar</div>
+          <div id="desktop-player-artist" class="player-track-artist">AylusMusic Player</div>
+        </div>
+      </div>
+
+      <!-- Center: Controls & Seekbar -->
+      <div class="player-controls-center">
+        <div class="player-buttons">
+          <button id="desktop-shuffle-btn" class="icon-btn" aria-label="Acak" title="Acak (S)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+          </button>
+          <button id="desktop-prev-btn" class="icon-btn" aria-label="Sebelumnya" title="Sebelumnya">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"></line></svg>
+          </button>
+          <button id="desktop-play-pause-btn" class="play-pause-btn" aria-label="Putar/Jeda" title="Putar/Jeda (Spasi)">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button id="desktop-next-btn" class="icon-btn" aria-label="Berikutnya" title="Berikutnya">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line></svg>
+          </button>
+          <button id="desktop-repeat-btn" class="icon-btn" aria-label="Ulangi" title="Ulangi (R)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+          </button>
+        </div>
+
+        <div class="player-progress-row">
+          <span id="desktop-current-time" class="time-label">0:00</span>
+          <input type="range" id="desktop-seekbar" class="audio-slider flex-1" min="0" max="100" value="0" />
+          <span id="desktop-duration-time" class="time-label">0:00</span>
+        </div>
+      </div>
+
+      <!-- Right: Volume with 300% Boost & Fullscreen Toggle -->
+      <div class="player-actions-right">
+        <div class="volume-container">
+          <svg class="w-4 h-4 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <input type="range" id="desktop-volume-slider" class="audio-slider volume-boost-slider flex-1" min="0" max="300" value="85" />
+          <span id="desktop-volume-value" class="text-xs font-mono text-slate-400 min-w-[34px] text-right">85%</span>
+        </div>
+        <button id="desktop-expand-player-btn" class="icon-btn" aria-label="Buka Layar Penuh" title="Buka Layar Penuh">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        </button>
+      </div>
+    </footer>
+
+    <!-- ====================================================
+         5. MOBILE MINI PLAYER (<= 768px)
+         ==================================================== -->
+    <div id="mobile-mini-player" class="mobile-mini-player">
+      <div class="mini-player-progress-bar">
+        <div id="mini-player-fill" class="mini-player-progress-fill"></div>
+      </div>
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <img id="mini-player-cover" src="/assets/logo.png" alt="Cover" class="w-10 h-10 rounded-lg object-cover bg-slate-800 flex-shrink-0" />
+        <div class="min-w-0 flex-1">
+          <div id="mini-player-title" class="text-xs font-bold text-white truncate">Pilih lagu</div>
+          <div id="mini-player-artist" class="text-[11px] text-slate-400 truncate">AylusMusic</div>
+        </div>
+      </div>
+      <button id="mini-play-pause-btn" class="play-pause-btn w-9 h-9" aria-label="Putar/Jeda">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+    </div>
+
+    <!-- ====================================================
+         6. MOBILE BOTTOM NAVIGATION (<= 768px)
+         ==================================================== -->
+    <nav class="mobile-bottom-nav">
+      <a href="#/home" class="mobile-nav-item active" data-route="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        <span>Beranda</span>
+      </a>
+      <a href="#/search" class="mobile-nav-item" data-route="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span>Cari</span>
+      </a>
+      <a href="#/library" class="mobile-nav-item" data-route="library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        <span>Pustaka</span>
+      </a>
+      <a href="#/profile" class="mobile-nav-item" data-route="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <span>Profil</span>
+      </a>
+    </nav>
+
+    <!-- ====================================================
+         7. FULLSCREEN PLAYER OVERLAY
+         ==================================================== -->
+    <div id="fullscreen-player">
+      <div class="fullscreen-top-nav">
+        <button id="fullscreen-close-btn" class="icon-btn text-slate-300 hover:text-white" aria-label="Tutup Layar Penuh">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Sedang Memutar</span>
+        <button id="fs-sleep-timer-btn" class="icon-btn text-slate-300 hover:text-white" aria-label="Sleep Timer" title="Sleep Timer">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </button>
+      </div>
+
+      <div class="fullscreen-content-grid">
+        <!-- Cover Art -->
+        <div class="fullscreen-cover-wrapper">
+          <img id="fs-player-cover" src="/assets/logo.png" alt="Cover" class="fullscreen-cover-img" />
+        </div>
+
+        <!-- Canvas Audio Visualizer -->
+        <canvas id="audio-visualizer-canvas"></canvas>
+
+        <!-- Track Title & Artist -->
+        <div class="fullscreen-meta">
+          <div class="min-w-0 flex-1 pr-3">
+            <h2 id="fs-player-title" class="text-xl sm:text-2xl font-extrabold text-white truncate">Pilih lagu</h2>
+            <p id="fs-player-artist" class="text-sm text-cyan-300 mt-1 truncate">AylusMusic Player</p>
+          </div>
+          <button id="fs-equalizer-btn" class="icon-btn text-amber-400" aria-label="Equalizer 10-Band" title="Equalizer 10-Band">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+          </button>
+        </div>
+
+        <!-- Seekbar & Timings -->
+        <div class="w-full mb-6">
+          <input type="range" id="fs-seekbar" class="audio-slider w-full" min="0" max="100" value="0" />
+          <div class="flex items-center justify-between text-xs font-mono text-slate-400 mt-2">
+            <span id="fs-current-time">0:00</span>
+            <span id="fs-duration-time">0:00</span>
+          </div>
+        </div>
+
+        <!-- Controls Buttons -->
+        <div class="flex items-center justify-between w-full max-w-sm mb-6">
+          <button id="fs-shuffle-btn" class="icon-btn" aria-label="Acak">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+          </button>
+          <button id="fs-prev-btn" class="icon-btn" aria-label="Sebelumnya">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"></line></svg>
+          </button>
+          <button id="fs-play-pause-btn" class="play-pause-btn w-16 h-16" aria-label="Putar/Jeda">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <button id="fs-next-btn" class="icon-btn" aria-label="Berikutnya">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line></svg>
+          </button>
+          <button id="fs-repeat-btn" class="icon-btn" aria-label="Ulangi">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+          </button>
+        </div>
+
+        <!-- Volume & 300% Boost Slider -->
+        <div class="flex items-center gap-3 w-full max-w-sm">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <input type="range" id="fs-volume-slider" class="audio-slider volume-boost-slider flex-1" min="0" max="300" value="85" />
+          <span id="fs-volume-value" class="text-xs font-mono text-slate-400 min-w-[36px] text-right">85%</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Main ES Module script -->
+  <script type="module" src="/js/app.js?v=2.0.0"></script>
+</body>
+</html>

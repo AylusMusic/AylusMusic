@@ -5,6 +5,7 @@
 import { audioEngine } from './audio-engine.js';
 import { dbManager } from './db.js';
 import { Toast } from './toast.js';
+import { youtubeService } from './youtube.js';
 
 class PlayerController {
   constructor() {
@@ -26,8 +27,46 @@ class PlayerController {
 
     this.listeners = [];
     this._setupAudioEvents();
+    this._setupYouTubeEvents();
     this._setupMediaSession();
     this._setupKeyboardShortcuts();
+  }
+
+  _setupYouTubeEvents() {
+    youtubeService.on((event, data) => {
+      if (this.currentTrack && this.currentTrack.audioType === 'youtube') {
+        if (event === 'stateChange') {
+          if (data.stateName === 'playing') {
+            this.isPlaying = true;
+            this._updateMediaSessionPlaybackState('playing');
+            this._requestWakeLock();
+            this._notify();
+          } else if (data.stateName === 'paused') {
+            this.isPlaying = false;
+            this._updateMediaSessionPlaybackState('paused');
+            this._releaseWakeLock();
+            this._notify();
+          } else if (data.stateName === 'ended') {
+            if (this.repeatMode === 'one') {
+              youtubeService.seekTo(0);
+              youtubeService.resumeVideo();
+            } else {
+              this.next(false);
+            }
+          }
+        } else if (event === 'timeupdate') {
+          this._updateMediaSessionPosition();
+          this._notify('timeupdate');
+        } else if (event === 'error') {
+          if (data === 150 || data === 101) {
+            Toast.warning('Video ini dibatasi embed oleh YouTube. Beralih ke track berikutnya...', 'YouTube Music');
+          } else {
+            Toast.warning('Kendala memutar video YouTube ini. Melanjutkan ke lagu berikutnya...', 'Pemutar YouTube');
+          }
+          this.next(false);
+        }
+      }
+    });
   }
 
   _setupAudioEvents() {
@@ -140,14 +179,18 @@ class PlayerController {
 
   _updateMediaSessionPosition() {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+    const isYT = this.currentTrack && this.currentTrack.audioType === 'youtube';
     const audio = audioEngine.audioElement;
-    if (!audio || !audio.duration || isNaN(audio.duration)) return;
+    const duration = isYT ? (youtubeService.getDuration() || this.currentTrack?.duration || 0) : (audio?.duration || this.currentTrack?.duration || 0);
+    const position = isYT ? youtubeService.getCurrentTime() : (audio?.currentTime || 0);
+
+    if (!duration || isNaN(duration) || duration <= 0) return;
 
     try {
       navigator.mediaSession.setPositionState({
-        duration: audio.duration,
-        playbackRate: audio.playbackRate,
-        position: audio.currentTime
+        duration: duration,
+        playbackRate: this.playbackRate,
+        position: Math.min(position, duration)
       });
     } catch (e) {}
   }
@@ -254,7 +297,65 @@ class PlayerController {
     }
 
     const audio = audioEngine.audioElement;
-    if (track.audioUrl) {
+
+    // Cek apakah track YouTube atau perlu auto-resolve ke versi penuh YouTube Music
+    const isExplicitYouTube = track.audioType === 'youtube' || !!track.youtubeId;
+    const isShortPreview = !isExplicitYouTube && (
+      !track.audioUrl ||
+      track.audioUrl.includes('p.scdn.co') ||
+      (track.duration && track.duration <= 35 && !track.isLocal)
+    );
+
+    if (isExplicitYouTube) {
+      // Matikan audio HTML5 biasa jika sedang berbunyi
+      if (audio) {
+        audio.pause();
+        audio.src = '';
+      }
+      track.audioType = 'youtube';
+      try {
+        await youtubeService.playVideo(track.youtubeId);
+        this.isPlaying = true;
+      } catch (err) {
+        console.warn('[Player] YouTube play error:', err);
+        Toast.warning('Sedang menghubungkan ke YouTube Music...', 'Pemutar Musik');
+      }
+    } else if (isShortPreview) {
+      // Auto-resolve Spotify preview (19-30s) atau metadata-only ke YouTube Music versi lengkap
+      Toast.info(`Mencari versi lagu penuh untuk "${track.title}"...`, 'YouTube Music');
+      const resolved = await youtubeService.resolveFullAudio(track);
+      if (resolved && track.youtubeId) {
+        if (audio) {
+          audio.pause();
+          audio.src = '';
+        }
+        track.audioType = 'youtube';
+        try {
+          await youtubeService.playVideo(track.youtubeId);
+          this.isPlaying = true;
+          Toast.success(`Memutar versi penuh: ${track.title}`, 'YouTube Music');
+        } catch (err) {
+          console.warn('[Player] YouTube playback failed after resolve:', err);
+        }
+      } else if (track.audioUrl) {
+        // Fallback ke audioUrl asli jika offline / resolve gagal
+        youtubeService.pauseVideo();
+        audio.src = track.audioUrl;
+        audio.playbackRate = this.playbackRate;
+        try {
+          await audio.play();
+          this.isPlaying = true;
+        } catch (err) {
+          console.warn('[Player] Audio play interrupted:', err.message);
+        }
+      } else {
+        audio.src = '';
+        this.isPlaying = false;
+        Toast.info(`"${track.title}" ditambahkan ke antrean. Tautkan video YouTube atau file audio untuk memutar.`, 'Info Audio');
+      }
+    } else if (track.audioUrl) {
+      // Audio lokal / direct file / cache
+      youtubeService.pauseVideo();
       audio.src = track.audioUrl;
       audio.playbackRate = this.playbackRate;
       try {
@@ -264,10 +365,11 @@ class PlayerController {
         console.warn('[Player] Audio play interrupted:', err.message);
       }
     } else {
-      // Track has no audio stream (Metadata only)
+      // Track has no audio stream
+      youtubeService.pauseVideo();
       audio.src = '';
       this.isPlaying = false;
-      Toast.info(`"${track.title}" ditambahkan ke antrean (Hanya metadata). Tautkan file audio untuk memutar.`, 'Info Audio');
+      Toast.info(`"${track.title}" ditambahkan ke antrean (Hanya metadata). Tautkan sumber audio untuk memutar.`, 'Info Audio');
     }
 
     this._updateMediaSessionMetadata(track);
@@ -284,7 +386,6 @@ class PlayerController {
       }
       return;
     }
-    const audio = audioEngine.audioElement;
     if (this.isPlaying) {
       this.pause();
     } else {
@@ -294,8 +395,14 @@ class PlayerController {
 
   async resume() {
     await audioEngine.ensureAudioContext();
+    if (this.currentTrack && this.currentTrack.audioType === 'youtube') {
+      youtubeService.resumeVideo();
+      this.isPlaying = true;
+      this._notify();
+      return;
+    }
     const audio = audioEngine.audioElement;
-    if (audio.src) {
+    if (audio && audio.src) {
       try {
         await audio.play();
         this.isPlaying = true;
@@ -307,6 +414,12 @@ class PlayerController {
   }
 
   pause() {
+    if (this.currentTrack && this.currentTrack.audioType === 'youtube') {
+      youtubeService.pauseVideo();
+      this.isPlaying = false;
+      this._notify();
+      return;
+    }
     const audio = audioEngine.audioElement;
     if (audio) {
       audio.pause();
@@ -335,9 +448,11 @@ class PlayerController {
   }
 
   prev() {
-    const audio = audioEngine.audioElement;
+    const isYT = this.currentTrack && this.currentTrack.audioType === 'youtube';
+    const currentTime = isYT ? youtubeService.getCurrentTime() : (audioEngine.audioElement?.currentTime || 0);
+
     // If played more than 3 seconds, restart current track
-    if (audio && audio.currentTime > 3) {
+    if (currentTime > 3) {
       this.seek(0);
       return;
     }
@@ -355,6 +470,13 @@ class PlayerController {
   }
 
   seek(seconds) {
+    const isYT = this.currentTrack && this.currentTrack.audioType === 'youtube';
+    if (isYT) {
+      youtubeService.seekTo(seconds);
+      this._updateMediaSessionPosition();
+      this._notify('timeupdate');
+      return;
+    }
     const audio = audioEngine.audioElement;
     if (audio && audio.duration && !isNaN(audio.duration)) {
       audio.currentTime = Math.max(0, Math.min(audio.duration, seconds));
@@ -466,14 +588,18 @@ class PlayerController {
   }
 
   getState() {
+    const isYT = this.currentTrack && this.currentTrack.audioType === 'youtube';
     const audio = audioEngine.audioElement;
+    const currentTime = isYT ? youtubeService.getCurrentTime() : (audio?.currentTime || 0);
+    const duration = isYT ? (youtubeService.getDuration() || this.currentTrack?.duration || 0) : (audio?.duration || this.currentTrack?.duration || 0);
+
     return {
       currentTrack: this.currentTrack,
       isPlaying: this.isPlaying,
       queue: this.queue,
       queueIndex: this.queueIndex,
-      currentTime: audio?.currentTime || 0,
-      duration: audio?.duration || this.currentTrack?.duration || 0,
+      currentTime: currentTime,
+      duration: duration,
       repeatMode: this.repeatMode,
       isShuffled: this.isShuffled,
       volume: audioEngine.volume,

@@ -198,6 +198,10 @@ class LocalDatabase {
     return this.get('tracks', id);
   }
 
+  async addTrack(track) {
+    return this.saveTrack(track);
+  }
+
   async saveTrack(track) {
     const item = {
       id: track.id || generateId('tr'),

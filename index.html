@@ -15,10 +15,10 @@
 
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#06303A" />
+  <meta name="theme-color" content="#F4FFFD" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="AylusMusic" />
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -28,13 +28,97 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
-  <!-- Stylesheets -->
+  <!-- Stylesheets (Tailwind CSS v4 + Variables + Base + Components + Screens) -->
   <link rel="stylesheet" href="/css/variables.css" />
   <link rel="stylesheet" href="/css/base.css" />
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/screens.css" />
+  <link rel="stylesheet" href="/src/index.css" />
+
+  <style id="light-theme-global-overrides">
+    body[data-theme="light"],
+    body[data-theme="light"] * {
+      --text-primary: #06303A;
+      --text-secondary: #0B535F;
+    }
+
+    body[data-theme="light"] {
+      background: radial-gradient(circle at 10% 10%, rgba(15, 181, 174, 0.14) 0%, transparent 45%),
+                  radial-gradient(circle at 90% 90%, rgba(245, 197, 66, 0.12) 0%, transparent 50%),
+                  #EEF8F8 !important;
+      color: #06303A !important;
+    }
+
+    body[data-theme="light"] h1,
+    body[data-theme="light"] h2,
+    body[data-theme="light"] h3,
+    body[data-theme="light"] h4,
+    body[data-theme="light"] .text-white {
+      color: #06303A !important;
+    }
+
+    body[data-theme="light"] .text-slate-100,
+    body[data-theme="light"] .text-slate-200,
+    body[data-theme="light"] .text-slate-300 {
+      color: #0B535F !important;
+    }
+
+    body[data-theme="light"] .text-slate-400 {
+      color: #396B74 !important;
+    }
+
+    body[data-theme="light"] .text-slate-500 {
+      color: #558790 !important;
+    }
+
+    body[data-theme="light"] .bg-slate-800,
+    body[data-theme="light"] .bg-slate-800\/80,
+    body[data-theme="light"] .bg-slate-800\/90,
+    body[data-theme="light"] .bg-slate-900,
+    body[data-theme="light"] .bg-slate-900\/80,
+    body[data-theme="light"] .bg-slate-900\/90,
+    body[data-theme="light"] .glass-panel {
+      background-color: #FFFFFF !important;
+      border-color: rgba(11, 127, 140, 0.16) !important;
+      box-shadow: 0 4px 16px rgba(11, 127, 140, 0.08) !important;
+    }
+
+    body[data-theme="light"] .border-slate-700,
+    body[data-theme="light"] .border-slate-700\/60,
+    body[data-theme="light"] .border-slate-800 {
+      border-color: rgba(11, 127, 140, 0.18) !important;
+    }
+
+    body[data-theme="light"] input,
+    body[data-theme="light"] select,
+    body[data-theme="light"] textarea {
+      background-color: #FFFFFF !important;
+      color: #06303A !important;
+      border-color: rgba(11, 127, 140, 0.22) !important;
+    }
+
+    body[data-theme="light"] .btn-secondary {
+      background: #FFFFFF !important;
+      color: #06303A !important;
+      border: 1px solid rgba(11, 127, 140, 0.18) !important;
+      box-shadow: 0 2px 8px rgba(11, 127, 140, 0.06) !important;
+    }
+
+    body[data-theme="light"] .btn-secondary:hover {
+      background: #F0FAF9 !important;
+      border-color: #0FB5AE !important;
+    }
+
+    body[data-theme="light"] #sidebar,
+    body[data-theme="light"] #player-bar,
+    body[data-theme="light"] #bottom-nav,
+    body[data-theme="light"] #mini-player {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: rgba(11, 127, 140, 0.16) !important;
+    }
+  </style>
 </head>
-<body data-theme="dark">
+<body data-theme="light">
 
   <!-- ====================================================
        1. LOADING SCREEN
@@ -301,6 +385,6 @@
   </div>
 
   <!-- Main ES Module script -->
-  <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/js/app.js?v=2.0.0"></script>
 </body>
 </html>

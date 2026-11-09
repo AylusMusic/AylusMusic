@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06303A" />
+      <stop offset="60%" stop-color="#0B4B58" />
+      <stop offset="100%" stop-color="#041E24" />
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22D3EE" />
+      <stop offset="35%" stop-color="#0FB5AE" />
+      <stop offset="65%" stop-color="#86EFAC" />
+      <stop offset="100%" stop-color="#F5C542" />
+    </linearGradient>
+    <linearGradient id="orbitGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#F5C542" stop-opacity="0.9" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Rounded Base Background for PWA Safe Zone -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Ambient glow circle -->
+  <circle cx="256" cy="256" r="180" fill="#0FB5AE" opacity="0.12" filter="url(#glow)" />
+  
+  <!-- Outer orbital swoosh -->
+  <path d="M 110,270 C 130,310 240,320 370,275 C 410,260 425,230 415,200 C 405,170 365,150 300,165" 
+        fill="none" stroke="url(#orbitGrad)" stroke-width="8" stroke-linecap="round" opacity="0.85" />
+  
+  <!-- Waveform Bars -->
+  <!-- Bar 1 -->
+  <rect x="145" y="235" width="16" height="42" rx="8" fill="#22D3EE" />
+  <!-- Bar 2 -->
+  <rect x="175" y="210" width="18" height="92" rx="9" fill="#06B6D4" />
+  <!-- Bar 3 -->
+  <rect x="207" y="180" width="20" height="152" rx="10" fill="#0FB5AE" />
+  <!-- Bar 4 (Center tall with play mark cutout) -->
+  <rect x="242" y="145" width="28" height="222" rx="14" fill="#34D399" />
+  <!-- Bar 5 -->
+  <rect x="282" y="175" width="20" height="162" rx="10" fill="#86EFAC" />
+  <!-- Bar 6 -->
+  <rect x="314" y="200" width="18" height="112" rx="9" fill="#FBBF24" />
+  <!-- Bar 7 -->
+  <rect x="344" y="225" width="16" height="62" rx="8" fill="#F5C542" />
+  <!-- Bar 8 -->
+  <rect x="372" y="242" width="14" height="28" rx="7" fill="#F59E0B" />
+
+  <!-- Center White Play Triangle -->
+  <polygon points="250,238 274,256 250,274" fill="#FFFFFF" filter="url(#glow)" />
+</svg>

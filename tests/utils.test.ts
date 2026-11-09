@@ -49,3 +49,46 @@ test('generateId returns unique ids with prefix', () => {
   assert.ok(id1.startsWith('track_'));
   assert.notEqual(id1, id2);
 });
+
+test('Spotify URL parser recognizes global, intl-id, album, track, and URI formats', () => {
+  const parseSpotifyLink = (link: string) => {
+    if (!link) return null;
+    const clean = link.trim();
+    const webMatch = clean.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|track)\/([a-zA-Z0-9]+)/i);
+    if (webMatch && webMatch[2]) {
+      return { type: webMatch[1].toLowerCase(), id: webMatch[2] };
+    }
+    const uriMatch = clean.match(/spotify:(playlist|album|track):([a-zA-Z0-9]+)/i);
+    if (uriMatch && uriMatch[2]) {
+      return { type: uriMatch[1].toLowerCase(), id: uriMatch[2] };
+    }
+    if (/^[a-zA-Z0-9]{22}$/.test(clean)) {
+      return { type: 'playlist', id: clean };
+    }
+    return null;
+  };
+
+  // Indonesian localized link with query params
+  const res1 = parseSpotifyLink('https://open.spotify.com/intl-id/playlist/37i9dQZF1DXcBWIGoYBM5M?si=e2f819');
+  assert.deepEqual(res1, { type: 'playlist', id: '37i9dQZF1DXcBWIGoYBM5M' });
+
+  // Standard global playlist link
+  const res2 = parseSpotifyLink('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M');
+  assert.deepEqual(res2, { type: 'playlist', id: '37i9dQZF1DXcBWIGoYBM5M' });
+
+  // Album link
+  const res3 = parseSpotifyLink('https://open.spotify.com/intl-id/album/4m2880jivSbbyEGAKfITCa');
+  assert.deepEqual(res3, { type: 'album', id: '4m2880jivSbbyEGAKfITCa' });
+
+  // Track link
+  const res4 = parseSpotifyLink('https://open.spotify.com/track/3zOYmiNOuyDL0ClxJcEJ0T?si=abc');
+  assert.deepEqual(res4, { type: 'track', id: '3zOYmiNOuyDL0ClxJcEJ0T' });
+
+  // Spotify URI
+  const res5 = parseSpotifyLink('spotify:playlist:37i9dQZF1DXcBWIGoYBM5M');
+  assert.deepEqual(res5, { type: 'playlist', id: '37i9dQZF1DXcBWIGoYBM5M' });
+
+  // Bare ID
+  const res6 = parseSpotifyLink('37i9dQZF1DXcBWIGoYBM5M');
+  assert.deepEqual(res6, { type: 'playlist', id: '37i9dQZF1DXcBWIGoYBM5M' });
+});

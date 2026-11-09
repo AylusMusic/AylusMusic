@@ -254,26 +254,154 @@ export class SpotifyImporter {
   }
 
   /**
-   * Parse Public Spotify Playlist Link / ID
-   * Examples:
-   * https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=...
-   * spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
+   * Parse Spotify Link, URI, or ID
+   * Supports:
+   * - https://open.spotify.com/playlist/...
+   * - https://open.spotify.com/intl-id/playlist/... (and all intl-* locales)
+   * - https://open.spotify.com/album/...
+   * - https://open.spotify.com/track/...
+   * - spotify:playlist:..., spotify:album:..., spotify:track:...
+   * - Bare 22-character Spotify ID
    */
-  parsePlaylistLink(link) {
+  parseSpotifyLink(link) {
     if (!link) return null;
     const clean = link.trim();
-    // HTTP URL regex
-    const httpMatch = clean.match(/open\.spotify\.com\/playlist\/([a-zA-Z0-9]+)/);
-    if (httpMatch && httpMatch[1]) return httpMatch[1];
 
-    // URI format
-    const uriMatch = clean.match(/spotify:playlist:([a-zA-Z0-9]+)/);
-    if (uriMatch && uriMatch[1]) return uriMatch[1];
+    // Standard & localized web links: open.spotify.com/(intl-xx/)?(playlist|album|track)/[id]
+    const webMatch = clean.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|track)\/([a-zA-Z0-9]+)/i);
+    if (webMatch && webMatch[2]) {
+      return {
+        type: webMatch[1].toLowerCase(),
+        id: webMatch[2]
+      };
+    }
 
-    // Bare ID (22 alphanumeric chars)
-    if (/^[a-zA-Z0-9]{22}$/.test(clean)) return clean;
+    // URI format: spotify:(playlist|album|track):[id]
+    const uriMatch = clean.match(/spotify:(playlist|album|track):([a-zA-Z0-9]+)/i);
+    if (uriMatch && uriMatch[2]) {
+      return {
+        type: uriMatch[1].toLowerCase(),
+        id: uriMatch[2]
+      };
+    }
+
+    // Bare ID (22 alphanumeric chars) -> defaults to playlist
+    if (/^[a-zA-Z0-9]{22}$/.test(clean)) {
+      return {
+        type: 'playlist',
+        id: clean
+      };
+    }
 
     return null;
+  }
+
+  /**
+   * Backward compatible helper returning just playlist ID or null
+   */
+  parsePlaylistLink(link) {
+    const parsed = this.parseSpotifyLink(link);
+    return parsed ? parsed.id : null;
+  }
+
+  /**
+   * Import complete playlist, album, or track list directly from Spotify link
+   */
+  async importFromSpotifyLink(link, options = {}) {
+    const { onProgress = null } = options;
+    const parsed = this.parseSpotifyLink(link);
+
+    if (!parsed) {
+      throw new Error('Format link Spotify tidak dikenali. Pastikan menyalin link dari Spotify (contoh: https://open.spotify.com/playlist/... atau https://open.spotify.com/intl-id/playlist/...)');
+    }
+
+    const { type, id } = parsed;
+    let data = null;
+
+    // 1. Try local/Vercel /api/spotify endpoint
+    try {
+      const res = await fetch(`/api/spotify?type=${type}&id=${id}`);
+      if (res.ok) {
+        data = await res.json();
+      }
+    } catch (err) {
+      console.warn('[Spotify] /api/spotify fetch failed:', err);
+    }
+
+    // 2. Fallback: If user is authenticated with Spotify PKCE
+    if ((!data || !data.tracks || data.tracks.length === 0) && this.isAuthorized() && type === 'playlist') {
+      try {
+        const authData = await this.fetchPublicPlaylistInfo(id);
+        const imported = await this.importPlaylist({
+          id,
+          name: authData.name,
+          coverUrl: authData.coverUrl,
+          trackCount: authData.trackCount
+        }, options);
+        return imported;
+      } catch (err) {
+        console.warn('[Spotify] PKCE import fallback failed:', err);
+      }
+    }
+
+    // 3. Fallback: If API wasn't available, try public oEmbed
+    if (!data || !data.name) {
+      const oembedInfo = await this.fetchPublicPlaylistInfo(id);
+      data = {
+        name: oembedInfo.name,
+        coverUrl: oembedInfo.coverUrl,
+        tracks: []
+      };
+    }
+
+    // Compress cover image to WebP
+    const compressedCover = await compressImageToWebP(data.coverUrl || '/assets/logo.png', 256);
+
+    // Save Playlist to IndexedDB & Firestore
+    const playlist = await dbManager.savePlaylist({
+      name: data.name || `Spotify ${type.toUpperCase()}`,
+      description: `Diimpor dari Spotify (${data.tracks ? data.tracks.length : 0} lagu)`,
+      coverUrl: compressedCover,
+      isSpotify: true,
+      spotifyId: id,
+      trackCount: (data.tracks || []).length
+    });
+
+    // Format & Save Tracks
+    const rawTracks = data.tracks || [];
+    const tracks = [];
+
+    for (let i = 0; i < rawTracks.length; i++) {
+      const t = rawTracks[i];
+      const hasPreview = !!t.audioPreviewUrl;
+
+      tracks.push({
+        id: generateId(`sp_${id}_`),
+        playlistId: playlist.id,
+        title: t.title || `Track ${i + 1}`,
+        artist: t.artist || 'Artis Spotify',
+        album: t.album || playlist.name,
+        duration: t.duration || 180,
+        coverUrl: compressedCover,
+        hasAudio: hasPreview,
+        audioUrl: t.audioPreviewUrl || '',
+        audioType: hasPreview ? 'stream' : 'metadata',
+        spotifyUri: t.spotifyUri || `spotify:track:${id}`
+      });
+
+      if (typeof onProgress === 'function') {
+        onProgress(i + 1, rawTracks.length);
+      }
+    }
+
+    if (tracks.length > 0) {
+      await dbManager.saveTracksBatch(tracks);
+    }
+
+    playlist.trackCount = tracks.length;
+    await dbManager.savePlaylist(playlist);
+
+    return { playlist, tracks };
   }
 
   /**
@@ -290,7 +418,7 @@ export class SpotifyImporter {
           name: data.title || 'Spotify Playlist',
           coverUrl: data.thumbnail_url || '/assets/logo.png',
           description: 'Playlist Publik Spotify',
-          trackCount: 30 // estimate
+          trackCount: 30
         };
       }
     } catch (e) {
@@ -302,7 +430,7 @@ export class SpotifyImporter {
       name: `Spotify Playlist (${playlistId.substring(0, 8)})`,
       coverUrl: '/assets/logo.png',
       description: 'Playlist Spotify',
-      trackCount: 20
+      trackCount: 0
     };
   }
 

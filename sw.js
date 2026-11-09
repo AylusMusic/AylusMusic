@@ -1,54 +1,40 @@
 /**
  * AylusMusic Service Worker
- * Versioned app shell caching, audio cache storage, and offline capabilities.
+ * Resilient App Shell caching, audio cache storage, and offline capabilities.
  */
 
-const CACHE_VERSION = 'aylus-music-v1.0.0';
-const SHELL_CACHE = `shell-${CACHE_VERSION}`;
+const CACHE_VERSION = 'aylus-music-v1.3.0';
+const SHELL_CACHE = `aylus-shell-${CACHE_VERSION}`;
 const AUDIO_CACHE = 'aylus-audio-cache';
 const COVERS_CACHE = 'aylus-covers-cache';
 
-const SHELL_ASSETS = [
+// Essential root files that always exist across both bundled and unbundled deployments
+const CORE_PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon.svg',
   '/assets/logo.png',
-  '/assets/icon.svg',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
-  '/css/variables.css',
-  '/css/base.css',
-  '/css/components.css',
-  '/css/screens.css',
-  '/js/app.js',
-  '/js/router.js',
-  '/js/ui.js',
-  '/js/toast.js',
-  '/js/auth.js',
-  '/js/firebase.js',
-  '/js/db.js',
-  '/js/player.js',
-  '/js/audio-engine.js',
-  '/js/library.js',
-  '/js/spotify.js',
-  '/js/audio-sources.js',
-  '/js/storage-manager.js',
-  '/js/settings.js',
-  '/js/utils.js'
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then(async (cache) => {
-      // Precache what is available without failing if an individual asset is missing
-      for (const asset of SHELL_ASSETS) {
+      // Safely fetch and cache only existing assets without throwing 404 console errors
+      const cachePromises = CORE_PRECACHE_URLS.map(async (url) => {
         try {
-          await cache.add(asset);
+          const response = await fetch(url);
+          if (response && response.status === 200) {
+            await cache.put(url, response);
+          }
         } catch (err) {
-          console.warn(`[SW] Precache skipped for ${asset}:`, err.message);
+          // Gracefully skip optional assets if offline during installation
         }
-      }
+      });
+      await Promise.allSettled(cachePromises);
     }).then(() => self.skipWaiting())
   );
 });
@@ -59,7 +45,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== SHELL_CACHE && key !== AUDIO_CACHE && key !== COVERS_CACHE) {
-            console.log('[SW] Deleting old cache:', key);
+            console.log('[SW] Deleting obsolete cache:', key);
             return caches.delete(key);
           }
         })
@@ -71,32 +57,49 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignore chrome-extension or non-http requests
+  // Ignore non-HTTP/HTTPS requests (chrome-extension, etc.)
   if (!url.protocol.startsWith('http')) return;
 
-  // Audio files: Check audio cache first
-  if (url.pathname.endsWith('.mp3') || url.pathname.endsWith('.opus') || url.pathname.endsWith('.m4a') || url.pathname.endsWith('.ogg') || url.searchParams.has('audio')) {
+  // Ignore Firebase Auth, Firestore live APIs, and /api/* serverless endpoints
+  if (url.pathname.startsWith('/api/') ||
+      url.hostname.includes('firestore.googleapis.com') || 
+      url.hostname.includes('identitytoolkit.googleapis.com') || 
+      url.hostname.includes('securetoken.googleapis.com') ||
+      url.hostname.includes('firebaseio.com')) {
+    return;
+  }
+
+  // 1. Audio stream/file caching
+  if (url.pathname.endsWith('.mp3') || 
+      url.pathname.endsWith('.opus') || 
+      url.pathname.endsWith('.m4a') || 
+      url.pathname.endsWith('.wav') || 
+      url.pathname.endsWith('.ogg') || 
+      url.searchParams.has('audio')) {
     event.respondWith(
       caches.open(AUDIO_CACHE).then(async (cache) => {
         const cached = await cache.match(event.request);
         if (cached) return cached;
         try {
-          const networkResponse = await fetch(event.request);
-          // Only cache successful standard audio responses
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
+          const response = await fetch(event.request);
+          if (response && response.status === 200) {
+            cache.put(event.request, response.clone());
           }
-          return networkResponse;
+          return response;
         } catch (err) {
-          return new Response('Audio offline not available', { status: 503, statusText: 'Offline' });
+          return new Response('Audio offline tidak tersedia', { status: 503, statusText: 'Offline' });
         }
       })
     );
     return;
   }
 
-  // Cover images / external artwork
-  if (url.pathname.includes('/covers/') || url.hostname.includes('scdn.co') || url.hostname.includes('spotifycdn.com') || url.hostname.includes('jamendo.com')) {
+  // 2. Cover images & remote thumbnails
+  if (url.pathname.includes('/covers/') || 
+      url.hostname.includes('scdn.co') || 
+      url.hostname.includes('spotifycdn.com') || 
+      url.hostname.includes('jamendo.com') ||
+      url.hostname.includes('pixabay.com')) {
     event.respondWith(
       caches.open(COVERS_CACHE).then(async (cache) => {
         const cached = await cache.match(event.request);
@@ -112,21 +115,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Firebase auth & firestore APIs: network only (Firestore handles its own IndexedDB offline caching)
-  if (url.hostname.includes('firestore.googleapis.com') || url.hostname.includes('identitytoolkit.googleapis.com') || url.hostname.includes('firebaseio.com')) {
-    return;
-  }
-
-  // Standard app shell navigation & assets: Cache first, fall back to network, fall back to cached /
+  // 3. App Shell (HTML, Bundled JS/CSS, Fonts, Icons)
   event.respondWith(
     caches.match(event.request).then(async (cachedResponse) => {
       if (cachedResponse) {
-        // Stale-while-revalidate for background updates
+        // Stale-while-revalidate in background
         fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && event.request.method === 'GET') {
             caches.open(SHELL_CACHE).then((cache) => cache.put(event.request, networkResponse));
           }
-        }).catch(() => {/* offline */});
+        }).catch(() => {});
         return cachedResponse;
       }
 
@@ -138,7 +136,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       } catch (err) {
-        // If navigation request fails, return cached index.html
+        // Offline fallback for navigation requests
         if (event.request.mode === 'navigate') {
           const fallback = await caches.match('/index.html') || await caches.match('/');
           if (fallback) return fallback;

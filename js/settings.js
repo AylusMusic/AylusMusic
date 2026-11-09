@@ -8,7 +8,9 @@ import { Toast, Dialog } from './toast.js';
 
 class SettingsManager {
   constructor() {
-    this.theme = localStorage.getItem('aylus_theme') || 'dark';
+    // Default tema terang (Light Mode) sesuai permintaan pengguna
+    const savedTheme = localStorage.getItem('aylus_theme');
+    this.theme = savedTheme ? savedTheme : 'light';
     this.crossfadeSeconds = parseInt(localStorage.getItem('aylus_crossfade') || '2', 10);
     this.wakeLock = localStorage.getItem('aylus_wakelock') !== 'false';
   }

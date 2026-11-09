@@ -1,1 +1,115 @@
 @import "tailwindcss";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@import "../css/variables.css";
+@import "../css/base.css";
+@import "../css/components.css";
+@import "../css/screens.css";
+
+/* ====================================================
+   LIGHT THEME ADAPTER (Kontras Tinggi, Elegan, Anti-Silau)
+   ==================================================== */
+body[data-theme="light"] {
+  background: radial-gradient(circle at 10% 10%, rgba(15, 181, 174, 0.12) 0%, transparent 45%),
+              radial-gradient(circle at 90% 90%, rgba(245, 197, 66, 0.1) 0%, transparent 50%),
+              #EEF8F8 !important;
+  color: #06303A !important;
+}
+
+body[data-theme="light"] h1,
+body[data-theme="light"] h2,
+body[data-theme="light"] h3,
+body[data-theme="light"] h4,
+body[data-theme="light"] .text-white {
+  color: #06303A !important;
+}
+
+body[data-theme="light"] .text-slate-100,
+body[data-theme="light"] .text-slate-200,
+body[data-theme="light"] .text-slate-300 {
+  color: #0B535F !important;
+}
+
+body[data-theme="light"] .text-slate-400 {
+  color: #457881 !important;
+}
+
+body[data-theme="light"] .text-slate-500 {
+  color: #6398A1 !important;
+}
+
+body[data-theme="light"] .bg-slate-800,
+body[data-theme="light"] .bg-slate-800\/80,
+body[data-theme="light"] .bg-slate-800\/90,
+body[data-theme="light"] .bg-slate-900,
+body[data-theme="light"] .bg-slate-900\/80,
+body[data-theme="light"] .bg-slate-900\/90,
+body[data-theme="light"] .glass-panel {
+  background-color: #FFFFFF !important;
+  border-color: rgba(11, 127, 140, 0.16) !important;
+  box-shadow: 0 4px 16px rgba(11, 127, 140, 0.08) !important;
+}
+
+body[data-theme="light"] .border-slate-700,
+body[data-theme="light"] .border-slate-700\/60,
+body[data-theme="light"] .border-slate-800 {
+  border-color: rgba(11, 127, 140, 0.18) !important;
+}
+
+body[data-theme="light"] input[type="text"],
+body[data-theme="light"] input[type="search"],
+body[data-theme="light"] input[type="url"],
+body[data-theme="light"] input[type="file"],
+body[data-theme="light"] select,
+body[data-theme="light"] textarea {
+  background-color: #FFFFFF !important;
+  color: #06303A !important;
+  border-color: rgba(11, 127, 140, 0.22) !important;
+}
+
+body[data-theme="light"] input::placeholder {
+  color: #6398A1 !important;
+}
+
+body[data-theme="light"] .btn-secondary {
+  background: #FFFFFF !important;
+  color: #06303A !important;
+  border: 1px solid rgba(11, 127, 140, 0.18) !important;
+  box-shadow: 0 2px 8px rgba(11, 127, 140, 0.06) !important;
+}
+
+body[data-theme="light"] .btn-secondary:hover {
+  background: #F0FAF9 !important;
+  border-color: #0FB5AE !important;
+}
+
+body[data-theme="light"] .track-row:hover {
+  background: rgba(15, 181, 174, 0.09) !important;
+}
+
+body[data-theme="light"] .track-row.active {
+  background: rgba(15, 181, 174, 0.16) !important;
+  border-color: rgba(15, 181, 174, 0.4) !important;
+}
+
+body[data-theme="light"] .bottom-sheet-content,
+body[data-theme="light"] .dialog-card {
+  background-color: #FFFFFF !important;
+  border: 1px solid rgba(11, 127, 140, 0.2) !important;
+  box-shadow: 0 16px 48px rgba(11, 127, 140, 0.18) !important;
+}
+
+body[data-theme="light"] #player-bar,
+body[data-theme="light"] #mini-player,
+body[data-theme="light"] #bottom-nav,
+body[data-theme="light"] #sidebar {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(11, 127, 140, 0.16) !important;
+  backdrop-filter: blur(16px);
+}
+
+body[data-theme="light"] #fullscreen-player {
+  background: radial-gradient(circle at top right, rgba(15, 181, 174, 0.18), transparent 60%),
+              radial-gradient(circle at bottom left, rgba(245, 197, 66, 0.12), transparent 50%),
+              #EEF8F8 !important;
+}

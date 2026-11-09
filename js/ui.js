@@ -11,6 +11,7 @@ import { audioEngine, EQ_PRESETS, EQ_FREQUENCIES } from './audio-engine.js';
 import { libraryManager } from './library.js';
 import { storageManager } from './storage-manager.js';
 import { spotifyImporter, getSpotifyClientId, setSpotifyClientId, getRedirectUri } from './spotify.js';
+import { youtubeService } from './youtube.js';
 import { audioSourcesManager } from './audio-sources.js';
 import { settingsManager } from './settings.js';
 import { Toast, Dialog, BottomSheet } from './toast.js';
@@ -320,34 +321,70 @@ class UIManager {
     this.mainContainer.innerHTML = `
       <div class="max-w-4xl mx-auto">
         <header class="mb-6">
-          <h1 class="text-2xl font-bold text-white mb-4">Cari Musik</h1>
-          <div class="relative">
+          <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold text-white">Cari Musik</h1>
+            <span class="badge badge-cool text-xs py-1 px-2.5 flex items-center gap-1">
+              <svg class="w-3 h-3 fill-current text-red-500" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              Didukung YouTube Music
+            </span>
+          </div>
+
+          <form id="search-form" class="relative">
             <input 
               type="search" 
               id="search-input" 
               value="${sanitize(this.searchQuery)}" 
-              placeholder="Cari lagu, artis, album, atau playlist..." 
-              class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-800/90 border border-slate-700 text-white text-base focus:border-cyan-400"
+              placeholder="Cari lagu, artis, atau judul musik apa saja..." 
+              class="w-full pl-12 pr-28 py-3.5 rounded-2xl bg-slate-800/90 border border-slate-700 text-white text-base focus:border-cyan-400"
               autofocus
             />
             <svg class="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-          </div>
+            <button type="submit" id="search-online-btn" class="btn btn-primary absolute right-2 top-1/2 -translate-y-1/2 text-xs py-1.5 px-3 min-h-[36px]">
+              Cari Online
+            </button>
+          </form>
         </header>
 
         <!-- Search Results List -->
         <div id="search-results-box">
+          <!-- Section YouTube Music Online Results -->
+          <div id="yt-search-section" class="mb-8 ${this.ytSearchResults?.length ? '' : 'hidden'}">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                Hasil dari YouTube Music (Versi Penuh)
+              </h3>
+              <span class="text-[11px] text-slate-400">${this.ytSearchResults?.length || 0} lagu</span>
+            </div>
+            <div class="space-y-1" id="yt-search-list">
+              ${(this.ytSearchResults || []).map(t => this._renderTrackRowHtml(t)).join('')}
+            </div>
+          </div>
+
           ${q ? `
             <div class="mb-6">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Lagu (${filteredTracks.length})</h3>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Pustaka Lokal (${filteredTracks.length})</h3>
+                ${filteredTracks.length === 0 ? `
+                  <button type="button" id="trigger-yt-search-btn" class="text-xs text-cyan-400 hover:underline">
+                    Cari "${sanitize(q)}" di YouTube Music →
+                  </button>
+                ` : ''}
+              </div>
               ${filteredTracks.length > 0 ? `
                 <div class="space-y-1">
                   ${filteredTracks.map(t => this._renderTrackRowHtml(t)).join('')}
                 </div>
               ` : `
-                <p class="text-sm text-slate-400 italic">Tidak ada lagu yang cocok dengan pencarian.</p>
+                <div class="glass-panel p-4 rounded-xl text-center">
+                  <p class="text-sm text-slate-400 mb-3">Belum ada di pustaka lokal Anda.</p>
+                  <button type="button" id="btn-search-yt-direct" class="btn btn-primary text-xs py-2 px-4" style="background: linear-gradient(135deg, #e11d48, #0fb5ae);">
+                    Cari & Putar Langsung dari YouTube Music
+                  </button>
+                </div>
               `}
             </div>
 
@@ -367,8 +404,18 @@ class UIManager {
               `}
             </div>
           ` : `
-            <div class="py-8 text-center text-slate-400 text-sm">
-              <p>Ketik judul lagu atau nama artis di atas untuk mencari.</p>
+            <div class="py-12 text-center text-slate-400 space-y-4">
+              <div class="w-16 h-16 mx-auto rounded-full bg-slate-800/80 flex items-center justify-center text-red-400">
+                <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              </div>
+              <h2 class="text-base font-bold text-white">Semua Musik Tersedia di Sini</h2>
+              <p class="text-xs max-w-sm mx-auto text-slate-400">Ketik lagu apa saja atau tempel judul artis untuk mendengarkan lagu versi penuh melalui integrasi YouTube Music.</p>
+              <div class="flex flex-wrap justify-center gap-2 pt-2">
+                <button type="button" class="btn btn-secondary text-xs py-1.5 px-3 quick-search-tag" data-tag="Nadin Amizah">Nadin Amizah</button>
+                <button type="button" class="btn btn-secondary text-xs py-1.5 px-3 quick-search-tag" data-tag="Sheila on 7">Sheila on 7</button>
+                <button type="button" class="btn btn-secondary text-xs py-1.5 px-3 quick-search-tag" data-tag="Taylor Swift">Taylor Swift</button>
+                <button type="button" class="btn btn-secondary text-xs py-1.5 px-3 quick-search-tag" data-tag="Lofi Hip Hop Chill">Lofi Hip Hop Chill</button>
+              </div>
             </div>
           `}
         </div>
@@ -376,9 +423,62 @@ class UIManager {
     `;
 
     const searchInput = document.getElementById('search-input');
+    const searchForm = document.getElementById('search-form');
+
+    const executeOnlineSearch = async (query) => {
+      if (!query) return;
+      const onlineBtn = document.getElementById('search-online-btn');
+      if (onlineBtn) onlineBtn.textContent = 'Mencari...';
+      Toast.info(`Mencari "${query}" di YouTube Music...`, 'YouTube Music');
+
+      try {
+        const searchFn = typeof youtubeService.searchYouTube === 'function' 
+          ? youtubeService.searchYouTube.bind(youtubeService) 
+          : youtubeService.search.bind(youtubeService);
+        const results = await searchFn(query);
+        this.ytSearchResults = results;
+        if (results.length > 0) {
+          Toast.success(`Ditemukan ${results.length} lagu di YouTube Music!`, 'YouTube Music');
+        } else {
+          Toast.warning('Tidak ditemukan lagu di YouTube Music untuk kata kunci ini.');
+        }
+        this.renderSearch();
+      } catch (err) {
+        console.error('Search YT error:', err);
+        Toast.error('Gagal mencari di YouTube Music. Coba lagi beberapa saat.', 'Kendala Jaringan');
+      } finally {
+        if (onlineBtn) onlineBtn.textContent = 'Cari Online';
+      }
+    };
+
     searchInput?.addEventListener('input', (e) => {
       this.searchQuery = e.target.value;
-      this.renderSearch();
+      // Do local filter
+      const qVal = this.searchQuery.toLowerCase().trim();
+      if (!qVal) {
+        this.ytSearchResults = [];
+      }
+    });
+
+    searchForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      executeOnlineSearch(this.searchQuery.trim());
+    });
+
+    document.getElementById('btn-search-yt-direct')?.addEventListener('click', () => {
+      executeOnlineSearch(this.searchQuery.trim());
+    });
+
+    document.getElementById('trigger-yt-search-btn')?.addEventListener('click', () => {
+      executeOnlineSearch(this.searchQuery.trim());
+    });
+
+    document.querySelectorAll('.quick-search-tag').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const tag = e.currentTarget.getAttribute('data-tag');
+        this.searchQuery = tag;
+        executeOnlineSearch(tag);
+      });
     });
 
     this._bindTrackRowActions();
@@ -957,7 +1057,13 @@ class UIManager {
       row.addEventListener('click', async (e) => {
         if (e.target.closest('button')) return;
         const trackId = row.getAttribute('data-track-id');
-        const track = await dbManager.getTrack(trackId);
+        let track = await dbManager.getTrack(trackId);
+        if (!track && this.ytSearchResults) {
+          track = this.ytSearchResults.find(t => t.id === trackId);
+          if (track) {
+            await dbManager.saveTrack(track);
+          }
+        }
         if (track) player.playTrack(track);
       });
     });
@@ -966,7 +1072,11 @@ class UIManager {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const trId = btn.getAttribute('data-like-id');
-        const track = await dbManager.getTrack(trId);
+        let track = await dbManager.getTrack(trId);
+        if (!track && this.ytSearchResults) {
+          track = this.ytSearchResults.find(t => t.id === trId);
+          if (track) await dbManager.saveTrack(track);
+        }
         if (track) {
           const isFav = await dbManager.toggleFavorite(track);
           btn.classList.toggle('text-pink-500', isFav);
@@ -979,7 +1089,11 @@ class UIManager {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const trId = btn.getAttribute('data-menu-id');
-        const track = await dbManager.getTrack(trId);
+        let track = await dbManager.getTrack(trId);
+        if (!track && this.ytSearchResults) {
+          track = this.ytSearchResults.find(t => t.id === trId);
+          if (track) await dbManager.saveTrack(track);
+        }
         if (track) this.showTrackContextMenu(track);
       });
     });
@@ -1060,29 +1174,71 @@ class UIManager {
     });
   }
 
-  // --- Spotify Import Modal ---
+  // --- Universal Music Import Modal (YouTube Music & Spotify) ---
   showSpotifyImportModal() {
-    const isGoogle = authManager.getState().isGoogle;
-
     BottomSheet.show({
-      title: 'Impor Playlist Spotify',
+      title: 'Impor Playlist & Musik',
       contentHtml: `
         <div class="space-y-4 text-xs">
-          <!-- 3 Methods Selector -->
-          <div class="flex items-center gap-1 p-1 bg-slate-800 rounded-xl">
-            <button class="flex-1 py-2 font-semibold text-center rounded-lg bg-cyan-500 text-white" id="tab-import-link">Tempel Link</button>
-            <button class="flex-1 py-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white" id="tab-import-csv">Unggah CSV</button>
-            <button class="flex-1 py-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white" id="tab-import-oauth">Login Spotify</button>
+          <!-- 4 Methods Selector -->
+          <div class="flex items-center gap-1 p-1 bg-slate-800 rounded-xl overflow-x-auto">
+            <button class="flex-1 py-2 px-2 font-semibold text-center rounded-lg bg-red-600 text-white whitespace-nowrap" id="tab-import-yt">
+              <span class="flex items-center justify-center gap-1">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                YouTube Music
+              </span>
+            </button>
+            <button class="flex-1 py-2 px-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white whitespace-nowrap" id="tab-import-link">Spotify Link</button>
+            <button class="flex-1 py-2 px-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white whitespace-nowrap" id="tab-import-csv">Unggah CSV</button>
+            <button class="flex-1 py-2 px-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white whitespace-nowrap" id="tab-import-oauth">Login Spotify</button>
           </div>
 
-          <!-- Section 1: Paste Link -->
-          <div id="section-import-link" class="space-y-3">
+          <!-- Section 0: YouTube Music (Default) -->
+          <div id="section-import-yt" class="space-y-3">
             <p class="text-slate-300 leading-relaxed">
-              Salin dan tempel link playlist publik dari Spotify (misal: https://open.spotify.com/playlist/...):
+              Tempel link playlist atau video dari <strong>YouTube Music</strong> / <strong>YouTube</strong> untuk memutar <strong>lagu versi penuh (3-5+ menit)</strong> tanpa terpotong:
+            </p>
+            <input type="url" id="yt-link-input" placeholder="https://music.youtube.com/playlist?list=... atau youtube.com/watch?v=..." class="w-full text-xs" />
+            
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+              <span class="text-slate-500">Coba contoh:</span>
+              <button type="button" class="btn btn-secondary text-[10px] py-1 px-2.5 sample-yt-btn" data-url="https://music.youtube.com/playlist?list=PL4fGSIvJgcbrqX3vW7jJ0kG0y_vI9n71f">
+                Pop Indonesia
+              </button>
+              <button type="button" class="btn btn-secondary text-[10px] py-1 px-2.5 sample-yt-btn" data-url="https://www.youtube.com/playlist?list=PLDcnymzs18LWrKzHmzrAM8JzLBzHi36HG">
+                Akustik Santai
+              </button>
+              <button type="button" class="btn btn-secondary text-[10px] py-1 px-2.5 sample-yt-btn" data-url="https://www.youtube.com/watch?v=5qap5aO4i9A">
+                Lofi Girl Chill
+              </button>
+            </div>
+
+            <button id="submit-import-yt-btn" class="btn btn-primary w-full text-xs py-2.5 flex items-center justify-center gap-2" style="background: linear-gradient(135deg, #e11d48, #0fb5ae);">
+              <span id="import-yt-btn-text">Impor Playlist YouTube Music (Versi Penuh)</span>
+              <div id="import-yt-btn-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            </button>
+          </div>
+
+          <!-- Section 1: Paste Link Spotify -->
+          <div id="section-import-link" class="space-y-3 hidden">
+            <p class="text-slate-300 leading-relaxed">
+              Salin dan tempel link playlist, album, atau lagu dari Spotify:
             </p>
             <input type="url" id="spotify-link-input" placeholder="https://open.spotify.com/playlist/..." class="w-full text-xs" />
-            <button id="submit-import-link-btn" class="btn btn-primary w-full text-xs py-2.5">
-              Impor dari Link
+            
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+              <span class="text-slate-500">Coba contoh:</span>
+              <button type="button" class="btn btn-secondary text-[10px] py-1 px-2.5 sample-spotify-btn" data-url="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M">
+                Top Hits (50 Lagu)
+              </button>
+              <button type="button" class="btn btn-secondary text-[10px] py-1 px-2.5 sample-spotify-btn" data-url="https://open.spotify.com/playlist/37i9dQZF1DX4t95P994uQf">
+                Lofi Chill
+              </button>
+            </div>
+
+            <button id="submit-import-link-btn" class="btn btn-primary w-full text-xs py-2.5 flex items-center justify-center gap-2">
+              <span id="import-btn-text">Impor dari Link Spotify</span>
+              <div id="import-btn-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             </button>
           </div>
 
@@ -1107,55 +1263,138 @@ class UIManager {
             </button>
           </div>
 
-          <div class="p-3 bg-slate-800/80 rounded-xl text-[11px] text-slate-400 border border-slate-700/60 leading-relaxed">
-            <strong>Catatan Hukum & Privasi:</strong> Impor mengambil metadata judul, artis, album, dan cover WebP agar hemat ruang. Untuk memutar audio, Anda dapat menautkan file lagu lokal atau mencari sumber Creative Commons yang legal.
+          <div class="p-3 bg-slate-800/80 rounded-xl text-[11px] text-slate-300 border border-slate-700/60 leading-relaxed">
+            <span class="text-emerald-400 font-bold">Fitur Baru:</span> AylusMusic kini otomatis menyambungkan lagu Spotify ke YouTube Music saat diputar sehingga lagu dimainkan <strong>versi penuh asli</strong> (bukan klip 19-30 detik!).
           </div>
         </div>
       `,
       onOpen: () => {
+        const tabYt = document.getElementById('tab-import-yt');
         const tabLink = document.getElementById('tab-import-link');
         const tabCsv = document.getElementById('tab-import-csv');
         const tabOauth = document.getElementById('tab-import-oauth');
 
+        const secYt = document.getElementById('section-import-yt');
         const secLink = document.getElementById('section-import-link');
         const secCsv = document.getElementById('section-import-csv');
         const secOauth = document.getElementById('section-import-oauth');
 
-        const activate = (tab, sec) => {
-          [tabLink, tabCsv, tabOauth].forEach(t => t.className = 'flex-1 py-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white');
-          [secLink, secCsv, secOauth].forEach(s => s.classList.add('hidden'));
-          tab.className = 'flex-1 py-2 font-semibold text-center rounded-lg bg-cyan-500 text-white';
+        const activate = (tab, sec, activeClass = 'bg-cyan-500 text-white') => {
+          [tabYt, tabLink, tabCsv, tabOauth].forEach(t => t.className = 'flex-1 py-2 px-2 font-semibold text-center rounded-lg text-slate-300 hover:text-white whitespace-nowrap');
+          [secYt, secLink, secCsv, secOauth].forEach(s => s.classList.add('hidden'));
+          tab.className = `flex-1 py-2 px-2 font-semibold text-center rounded-lg ${activeClass} whitespace-nowrap`;
           sec.classList.remove('hidden');
         };
 
-        tabLink.onclick = () => activate(tabLink, secLink);
-        tabCsv.onclick = () => activate(tabCsv, secCsv);
-        tabOauth.onclick = () => activate(tabOauth, secOauth);
+        tabYt.onclick = () => activate(tabYt, secYt, 'bg-red-600 text-white');
+        tabLink.onclick = () => activate(tabLink, secLink, 'bg-cyan-500 text-white');
+        tabCsv.onclick = () => activate(tabCsv, secCsv, 'bg-cyan-500 text-white');
+        tabOauth.onclick = () => activate(tabOauth, secOauth, 'bg-amber-500 text-slate-900');
 
-        // Submit link
-        document.getElementById('submit-import-link-btn')?.addEventListener('click', async () => {
-          const val = document.getElementById('spotify-link-input')?.value;
-          const plId = spotifyImporter.parsePlaylistLink(val);
-          if (!plId) {
-            Toast.error('Link Spotify tidak valid. Format yang didukung: https://open.spotify.com/playlist/...');
+        // Click sample YT button
+        document.querySelectorAll('.sample-yt-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const url = e.currentTarget.getAttribute('data-url');
+            const input = document.getElementById('yt-link-input');
+            if (input && url) {
+              input.value = url;
+              input.focus();
+            }
+          });
+        });
+
+        // Click sample Spotify button
+        document.querySelectorAll('.sample-spotify-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const url = e.currentTarget.getAttribute('data-url');
+            const input = document.getElementById('spotify-link-input');
+            if (input && url) {
+              input.value = url;
+              input.focus();
+            }
+          });
+        });
+
+        // Submit YouTube Music Import
+        document.getElementById('submit-import-yt-btn')?.addEventListener('click', async () => {
+          const input = document.getElementById('yt-link-input');
+          const submitBtn = document.getElementById('submit-import-yt-btn');
+          const btnText = document.getElementById('import-yt-btn-text');
+          const spinner = document.getElementById('import-yt-btn-spinner');
+
+          const val = input?.value?.trim();
+          if (!val) {
+            Toast.warning('Silakan masukkan link YouTube Music atau YouTube.');
             return;
           }
 
-          document.getElementById('bottom-sheet-overlay')?.classList.remove('active');
-          Toast.info('Memeriksa metadata playlist Spotify...');
-          const info = await spotifyImporter.fetchPublicPlaylistInfo(plId);
+          if (submitBtn) submitBtn.disabled = true;
+          if (btnText) btnText.textContent = 'Menghubungkan ke YouTube Music...';
+          if (spinner) spinner.classList.remove('hidden');
 
-          const newPl = await dbManager.savePlaylist({
-            name: info.name,
-            description: 'Diimpor dari Spotify',
-            coverUrl: info.coverUrl,
-            isSpotify: true,
-            spotifyId: plId,
-            trackCount: 0
-          });
+          try {
+            Toast.info('Mengambil daftar lagu penuh dari YouTube Music...', 'Memproses');
+            const result = await youtubeService.importPlaylist(val, {
+              onProgress: (cur, tot) => {
+                if (btnText) btnText.textContent = `Mengimpor ${cur}/${tot} lagu penuh...`;
+              }
+            });
 
-          Toast.success(`Playlist "${newPl.name}" berhasil ditambahkan. Silakan tautkan lagu lokal atau sumber audio legal.`, 'Impor Berhasil');
-          router.navigate(`/playlist/${newPl.id}`);
+            document.getElementById('bottom-sheet-overlay')?.classList.remove('active');
+            Toast.success(`Playlist "${result.playlist.name}" berhasil diimpor dengan ${result.tracks.length} lagu versi penuh!`, 'YouTube Music');
+            router.navigate(`/playlist/${result.playlist.id}`);
+          } catch (err) {
+            console.error('Import YouTube error:', err);
+            Toast.error(err.message || 'Gagal mengimpor dari YouTube Music.', 'Impor Gagal');
+          } finally {
+            if (submitBtn) submitBtn.disabled = false;
+            if (btnText) btnText.textContent = 'Impor Playlist YouTube Music (Versi Penuh)';
+            if (spinner) spinner.classList.add('hidden');
+          }
+        });
+
+        // Submit Spotify Link
+        document.getElementById('submit-import-link-btn')?.addEventListener('click', async () => {
+          const input = document.getElementById('spotify-link-input');
+          const submitBtn = document.getElementById('submit-import-link-btn');
+          const btnText = document.getElementById('import-btn-text');
+          const spinner = document.getElementById('import-btn-spinner');
+
+          const val = input?.value?.trim();
+          if (!val) {
+            Toast.warning('Silakan tempel link Spotify terlebih dahulu.');
+            return;
+          }
+
+          const parsed = spotifyImporter.parseSpotifyLink(val);
+          if (!parsed) {
+            Toast.error('Link tidak valid. Pastikan link diawali https://open.spotify.com/playlist/...');
+            return;
+          }
+
+          if (submitBtn) submitBtn.disabled = true;
+          if (btnText) btnText.textContent = 'Mengimpor dari Spotify...';
+          if (spinner) spinner.classList.remove('hidden');
+
+          try {
+            Toast.info('Mengambil metadata dan daftar lagu dari Spotify...', 'Memproses');
+            const result = await spotifyImporter.importFromSpotifyLink(val, {
+              onProgress: (current, total) => {
+                if (btnText) btnText.textContent = `Mengimpor ${current}/${total} lagu...`;
+              }
+            });
+
+            document.getElementById('bottom-sheet-overlay')?.classList.remove('active');
+            Toast.success(`Playlist "${result.playlist.name}" berhasil diimpor dengan ${result.tracks.length} lagu!`, 'Impor Berhasil');
+            router.navigate(`/playlist/${result.playlist.id}`);
+          } catch (err) {
+            console.error('Import Spotify error:', err);
+            Toast.error(err.message || 'Gagal mengimpor dari Spotify. Periksa koneksi internet atau gunakan tab Unggah CSV.', 'Impor Gagal');
+          } finally {
+            if (submitBtn) submitBtn.disabled = false;
+            if (btnText) btnText.textContent = 'Impor dari Link Spotify';
+            if (spinner) spinner.classList.add('hidden');
+          }
         });
 
         // Submit CSV
