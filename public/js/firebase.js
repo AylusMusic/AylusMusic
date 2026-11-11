@@ -15,46 +15,68 @@ export const firebaseConfig = {
 let app = null;
 let auth = null;
 let db = null;
+let GoogleAuthProvider = null;
 let isInitialized = false;
+let initPromise = null;
 let initError = null;
 
 export async function initFirebase() {
-  if (isInitialized) return { app, auth, db, error: initError };
-
-  try {
-    // Dynamic import from CDN ESM
-    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const { getAuth, GoogleAuthProvider } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
-    const { 
-      initializeFirestore, 
-      persistentLocalCache, 
-      persistentMultipleTabManager 
-    } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-
-    // Initialize Firestore with multi-tab persistent cache
-    try {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
-        })
-      });
-    } catch (cacheErr) {
-      console.warn('[Firebase] Firestore persistent cache fallback:', cacheErr.message);
-      const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-      db = getFirestore(app);
-    }
-
-    isInitialized = true;
-    console.log('[Firebase] Initialized successfully with offline persistence');
-    return { app, auth, db, GoogleAuthProvider, error: null };
-  } catch (err) {
-    initError = err;
-    console.warn('[Firebase] Initialization offline/skipped:', err.message);
-    return { app: null, auth: null, db: null, GoogleAuthProvider: null, error: err };
+  if (isInitialized) {
+    return { app, auth, db, GoogleAuthProvider, error: initError };
   }
+
+  if (initPromise) {
+    return initPromise;
+  }
+
+  initPromise = (async () => {
+    try {
+      // Dynamic import from CDN ESM
+      const { initializeApp, getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+      const authModule = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+      const { getAuth } = authModule;
+      GoogleAuthProvider = authModule.GoogleAuthProvider;
+
+      const { 
+        initializeFirestore, 
+        persistentLocalCache, 
+        persistentMultipleTabManager,
+        getFirestore
+      } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+
+      const existingApps = getApps();
+      app = existingApps.length > 0 ? getApp() : initializeApp(firebaseConfig);
+      auth = getAuth(app);
+
+      // Initialize Firestore with multi-tab persistent cache
+      try {
+        db = initializeFirestore(app, {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager()
+          })
+        });
+      } catch (cacheErr) {
+        console.warn('[Firebase] Firestore persistent cache fallback:', cacheErr.message);
+        try {
+          db = getFirestore(app);
+        } catch (fErr) {
+          console.warn('[Firebase] getFirestore fallback failed:', fErr.message);
+        }
+      }
+
+      isInitialized = true;
+      console.log('[Firebase] Initialized successfully with offline persistence');
+      return { app, auth, db, GoogleAuthProvider, error: null };
+    } catch (err) {
+      initError = err;
+      console.warn('[Firebase] Initialization offline/skipped:', err.message);
+      return { app, auth, db, GoogleAuthProvider, error: err };
+    } finally {
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
 }
 
-export { app, auth, db };
+export { app, auth, db, GoogleAuthProvider };

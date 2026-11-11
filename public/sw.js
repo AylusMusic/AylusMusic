@@ -60,12 +60,16 @@ self.addEventListener('fetch', (event) => {
   // Ignore non-HTTP/HTTPS requests (chrome-extension, etc.)
   if (!url.protocol.startsWith('http')) return;
 
-  // Ignore Firebase Auth, Firestore live APIs, and /api/* serverless endpoints
+  // Ignore Firebase Auth, Google APIs, CDN ESM, and /api/* serverless endpoints
   if (url.pathname.startsWith('/api/') ||
       url.hostname.includes('firestore.googleapis.com') || 
       url.hostname.includes('identitytoolkit.googleapis.com') || 
       url.hostname.includes('securetoken.googleapis.com') ||
-      url.hostname.includes('firebaseio.com')) {
+      url.hostname.includes('firebaseio.com') ||
+      url.hostname.includes('firebaseapp.com') ||
+      url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('google.com') ||
+      url.hostname.includes('gstatic.com')) {
     return;
   }
 
